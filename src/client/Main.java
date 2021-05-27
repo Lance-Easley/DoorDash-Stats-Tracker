@@ -11,7 +11,20 @@ import dbutils.DatabaseUtils;
 public class Main {
 
     public enum Prompt {
-        NAME, PAY, TIMEOFORDER, WEEKDAY, COMPLETETIME, MILES, FOODPREP, RATING, MAINMENU, NEXTPAGE, DELETEORDER, SEARCHMENU, ENTRIES
+        NAME,
+        PAY,
+        TIMEOFORDER,
+        WEEKDAY,
+        COMPLETETIME,
+        MILES,
+        FOODPREP,
+        RATING,
+        MAINMENU,
+        NEXTPAGE,
+        DELETEORDER,
+        SEARCHMENU,
+        ENTRIES,
+        OPTIONS
     }
 
     static Scanner keyboard = new Scanner(System.in);
@@ -19,18 +32,28 @@ public class Main {
     static ArrayList<DoorDashOrder> orders = new ArrayList<>();
     static ArrayList<Integer> orderIds = new ArrayList<>();
 
-    public static void updateOrders() {
-        try {
-            orders = DatabaseUtils.getOrdersFromDatabase();
-            orderIds = DatabaseUtils.getOrderIdsFromDatabase();
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
+    // Option Variables
+    static boolean isSentenced = false;
+    static int orderPagination = 2;
+    static int searchOrderRows = 3;
+
+    public static void updateOrders() throws SQLException{
+        orders = DatabaseUtils.getOrdersFromDatabase();
+        orderIds = DatabaseUtils.getOrderIdsFromDatabase();
+    }
+
+    public static void updateSettings() throws SQLException {
+        HashMap<String, String> settings = DatabaseUtils.getSettingsFromDatabase();
+
+        isSentenced = Boolean.parseBoolean(settings.get("isSentenced"));
+        orderPagination = Integer.parseInt(settings.get("displayOrderPagination"));
+        searchOrderRows = Integer.parseInt(settings.get("searchOrderRows"));
     }
 
     public static void main(String[] args) throws SQLException {
         DatabaseUtils.connect();
         updateOrders();
+        updateSettings();
 
         // Main Menu Loop
         System.out.println("Welcome To DoorDash Stats Tracker!");
@@ -43,13 +66,15 @@ public class Main {
         System.out.println("2 - Show Orders");
         System.out.println("3 - Search Menu");
         System.out.println("4 - Delete Order");
-        System.out.println("5 - Quit");
+        System.out.println("5 - Options");
+        System.out.println("6 - Quit");
 
         switch (inputHandler(keyboard, Prompt.MAINMENU, orders.size())) {
             case "recordOrder" -> createOrder();
-            case "showOrders" -> displayAllOrders(2, false);
+            case "showOrders" -> displayAllOrders(orderPagination, isSentenced);
             case "searchOrders" -> searchMenu();
             case "deleteOrder" -> deleteOrder();
+            case "options" -> optionsMenu();
             case "quit" -> {
                 return;
             }
@@ -66,47 +91,44 @@ public class Main {
         System.out.println("4 - Hours With Most Orders");
         System.out.println("5 - Fastest Average Order Complete Times By Restaurant");
         System.out.println("6 - Cancel");
+
         switch (inputHandler(keyboard, Prompt.SEARCHMENU, orders.size())) {
-            case "mostOrders" -> {
-                System.out.print("How many rows? (Type '...' to cancel) > ");
-                String input = inputHandler(keyboard, Prompt.ENTRIES, orders.size());
-                if (input.equals("...")) break;
-                int rows = Integer.parseInt(input);
-                displayMostOrderedRestaurants(rows);
+            case "mostOrders" -> displayMostOrderedRestaurants(searchOrderRows);
+            case "bestRatings" -> displayAverageRestaurantRatings(searchOrderRows);
+            case "mostMoney" -> displayRestaurantEarnings(searchOrderRows);
+            case "bestHours" -> displayOrdersPerHour(searchOrderRows);
+            case "fastestRestaurants" -> displayFastestOrdersByRestaurant(searchOrderRows);
+            case "cancel" -> { return; }
+        }
+
+        searchMenu();
+    }
+
+    public static void optionsMenu() throws SQLException{
+        System.out.println("\nOptions Menu");
+        System.out.println("1 - Order Display Format [" + ((isSentenced) ? "Sentenced" : "Receipt") + "]");
+        System.out.println("2 - Display Order Pagination [" + orderPagination + "]");
+        System.out.println("3 - Search Order Rows [" + searchOrderRows + "]");
+        System.out.println("4 - Accept Changes");
+        System.out.println("5 - Cancel");
+        switch (inputHandler(keyboard, Prompt.OPTIONS, orders.size())) {
+            case "orderDisplayFormat" -> isSentenced = !isSentenced;
+            case "orderPagination" -> {
+                System.out.print("Enter Order Pagination Amount > ");
+                orderPagination = Integer.parseInt(inputHandler(keyboard, Prompt.ENTRIES, orders.size()));
             }
-            case "bestRatings" -> {
-                System.out.print("How many rows? (Type '...' to cancel) > ");
-                String input = inputHandler(keyboard, Prompt.ENTRIES, orders.size());
-                if (input.equals("...")) break;
-                int rows = Integer.parseInt(input);
-                displayAverageRestaurantRatings(rows);
+            case "searchOrderRows" -> {
+                System.out.print("Enter Search Order Rows > ");
+                searchOrderRows = Integer.parseInt(inputHandler(keyboard, Prompt.ENTRIES, orders.size()));
             }
-            case "mostMoney" -> {
-                System.out.print("How many rows? (Type '...' to cancel) > ");
-                String input = inputHandler(keyboard, Prompt.ENTRIES, orders.size());
-                if (input.equals("...")) break;
-                int rows = Integer.parseInt(input);
-                displayRestaurantEarnings(rows);
-            }
-            case "bestHours" -> {
-                System.out.print("How many rows? (Type '...' to cancel) > ");
-                String input = inputHandler(keyboard, Prompt.ENTRIES, orders.size());
-                if (input.equals("...")) break;
-                int rows = Integer.parseInt(input);
-                displayOrdersPerHour(rows);
-            }
-            case "fastestRestaurants" -> {
-                System.out.print("How many rows? (Type '...' to cancel) > ");
-                String input = inputHandler(keyboard, Prompt.ENTRIES, orders.size());
-                if (input.equals("...")) break;
-                int rows = Integer.parseInt(input);
-                displayFastestOrdersByRestaurant(rows);
-            }
-            case "cancel" -> {
+            case "accept" -> {
+                DatabaseUtils.updateSettingsInDatabase(isSentenced, orderPagination, searchOrderRows);
                 return;
             }
+            case "cancel" -> { return; }
         }
-        searchMenu();
+
+        optionsMenu();
     }
 
     public static void createOrder() throws SQLException{
@@ -204,6 +226,28 @@ public class Main {
         }
     }
 
+
+    public static void deleteOrder() throws SQLException{
+        if (orders.size() == 0) {
+            System.out.println("You have no recorded orders");
+            return;
+        }
+
+        System.out.println("Here are all orders on record:");
+        for (int i = 0; i < orders.size(); i++) {
+            System.out.println("---(" + (i + 1) + ")---");
+            System.out.println(orders.get(i).getReceipt());
+        }
+
+        System.out.print("Which order would you like to delete? (Type '...' to cancel) > ");
+        String input = inputHandler(keyboard, Prompt.DELETEORDER, orders.size());
+        if (input.equals("...")) return;
+
+        DatabaseUtils.deleteOrderFromDatabase(orderIds.get(Integer.parseInt(input) - 1));
+
+        updateOrders();
+    }
+
     public static void displayMostOrderedRestaurants(int entries) throws SQLException{
         HashMap<String, Integer> restaurantData = DatabaseUtils.getNumberOfOrdersByRestaurant();
 
@@ -284,27 +328,6 @@ public class Main {
         }
     }
 
-    public static void deleteOrder() throws SQLException{
-        if (orders.size() == 0) {
-            System.out.println("You have no recorded orders");
-            return;
-        }
-
-        System.out.println("Here are all orders on record:");
-        for (int i = 0; i < orders.size(); i++) {
-            System.out.println("---(" + (i + 1) + ")---");
-            System.out.println(orders.get(i).getReceipt());
-        }
-
-        System.out.print("Which order would you like to delete? (Type '...' to cancel) > ");
-        String input = inputHandler(keyboard, Prompt.DELETEORDER, orders.size());
-        if (input.equals("...")) return;
-
-        DatabaseUtils.deleteOrderFromDatabase(orderIds.get(Integer.parseInt(input) - 1));
-
-        updateOrders();
-    }
-
     public static String inputHandler(Scanner keyboard, Prompt prompt, int sizeOfOrdersArray) {
         String userInput = keyboard.nextLine().strip().toLowerCase();
 
@@ -330,10 +353,15 @@ public class Main {
             case PAY, MILES -> {
                 if (isNumeric(userInput) && Double.parseDouble(userInput) >= 0) return userInput;
             }
-            case RATING, ENTRIES -> {
-                if (!isWholeNumber(userInput)) break;
-                if (isNumeric(userInput) && Integer.parseInt(userInput) < 6 && Integer.parseInt(userInput) > 0) {
-                    return userInput;
+            case RATING -> {
+                if (isNumeric(userInput)) {
+                    if (!isWholeNumber(userInput)) break;
+                    if (Integer.parseInt(userInput) < 6 && Integer.parseInt(userInput) > 0) return userInput;
+                }
+            }
+            case ENTRIES -> {
+                if (isNumeric(userInput)) {
+                    if (isWholeNumber(userInput) && Integer.parseInt(userInput) > 0) return userInput;
                 }
             }
             case TIMEOFORDER -> {
@@ -441,7 +469,8 @@ public class Main {
                     case '2' -> { return "showOrders"; }
                     case '3' -> { return "searchOrders"; }
                     case 'd', '4' -> { return "deleteOrder"; }
-                    case 'q', '5' -> { return "quit"; }
+                    case 'o', '5' -> { return "options"; }
+                    case 'q', '6' -> { return "quit"; }
                 }
             }
             case NEXTPAGE -> {
@@ -462,6 +491,15 @@ public class Main {
                     case 'h', '4' -> { return "bestHours"; }
                     case 'f', '5' -> { return "fastestRestaurants"; }
                     case 'c', '6' -> { return "cancel"; }
+                }
+            }
+            case OPTIONS -> {
+                switch (userInput.charAt(0)) {
+                    case 'o', '1' -> { return "orderDisplayFormat"; }
+                    case 'd', '2' -> { return "orderPagination"; }
+                    case 's', '3' -> { return "searchOrderRows"; }
+                    case 'a', '4' -> { return "accept"; }
+                    case 'c', '5' -> { return "cancel"; }
                 }
             }
         }

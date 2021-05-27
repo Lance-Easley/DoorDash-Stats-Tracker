@@ -20,20 +20,23 @@ public class TestDataBaseUtils {
     @BeforeAll
     static void clearTestTable() throws SQLException{
         DatabaseUtils.clearTestTableData();
+
+        // Default Settings
+        DatabaseUtils.updateSettingsInDatabase(false, 2, 3);
     }
 
     @BeforeEach
     void ensureUsingTestTable() {
-        DatabaseUtils.changeToTestTable(true);
+        DatabaseUtils.changeToTestTables(true);
     }
 
     @Test
     @Order(1)
     void testChangeDatabaseTable() {
-        DatabaseUtils.changeToTestTable(false);
+        DatabaseUtils.changeToTestTables(false);
         assertEquals("Orders", DatabaseUtils.getDbTable());
 
-        DatabaseUtils.changeToTestTable(true);
+        DatabaseUtils.changeToTestTables(true);
         assertEquals("TestOrders", DatabaseUtils.getDbTable());
     }
 
@@ -187,5 +190,27 @@ public class TestDataBaseUtils {
         DatabaseUtils.deleteOrderFromDatabase(testOrderId);
 
         assertEquals(1, DatabaseUtils.getOrdersFromDatabase().size());
+    }
+
+    @Test
+    @Order(2)
+    void testGetOptionsFromDatabase() throws SQLException {
+        HashMap<String, String> testSettings = DatabaseUtils.getSettingsFromDatabase();
+
+        assertEquals("false", testSettings.get("isSentenced"));
+        assertEquals("2", testSettings.get("displayOrderPagination"));
+        assertEquals("3", testSettings.get("searchOrderRows"));
+    }
+
+    @Test
+    @Order(3)
+    void testUpdateOptionsInDatabase() throws SQLException {
+        DatabaseUtils.updateSettingsInDatabase(true, 5, 10);
+
+        HashMap<String, String> testSettings = DatabaseUtils.getSettingsFromDatabase();
+
+        assertEquals("true", testSettings.get("isSentenced"));
+        assertEquals("5", testSettings.get("displayOrderPagination"));
+        assertEquals("10", testSettings.get("searchOrderRows"));
     }
 }

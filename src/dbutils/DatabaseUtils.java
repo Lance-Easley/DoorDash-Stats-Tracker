@@ -15,6 +15,7 @@ public class DatabaseUtils {
     static String dbUrl = "jdbc:sqlite:src/dbutils/doordash_stats.db"; // file path to .db file
     static Connection conn;
     static String dbTable = "Orders";
+    static String dbOptionsTable = "Options";
 
     public static void connect() throws SQLException{
         if (conn == null || conn.isClosed()) {
@@ -22,9 +23,15 @@ public class DatabaseUtils {
         }
     }
 
-    public static void changeToTestTable(boolean choice){
-        if (choice) dbTable = "TestOrders";
-        else dbTable = "Orders";
+    public static void changeToTestTables(boolean choice){
+        if (choice) {
+            dbTable = "TestOrders";
+            dbOptionsTable = "TestOptions";
+        }
+        else {
+            dbTable = "Orders";
+            dbOptionsTable = "Options";
+        }
     }
 
     public static void closeConnection() throws SQLException {
@@ -234,5 +241,31 @@ public class DatabaseUtils {
         }
 
         return result;
+    }
+
+    public static HashMap<String, String> getSettingsFromDatabase() throws SQLException {
+        HashMap<String, String> settings = new HashMap<>();
+
+        String settingsString = "SELECT * FROM " + dbOptionsTable;
+        PreparedStatement settingsStatement = conn.prepareStatement(settingsString);
+
+        ResultSet data = settingsStatement.executeQuery();
+
+        settings.put("isSentenced", (data.getString("isSentenced").equals("1")) ? "true" : "false");
+        settings.put("displayOrderPagination", data.getString("displayOrderPagination"));
+        settings.put("searchOrderRows", data.getString("searchOrderRows"));
+
+        return settings;
+    }
+
+    public static void updateSettingsInDatabase(boolean isSentenced, int displayOrderPagination, int searchOrderRows) throws SQLException {
+        String settingsString = "UPDATE " + dbOptionsTable + " SET isSentenced = ?, displayOrderPagination = ?, searchOrderRows = ?";
+        PreparedStatement settingsStatement = conn.prepareStatement(settingsString);
+
+        settingsStatement.setBoolean(1, isSentenced);
+        settingsStatement.setInt(2, displayOrderPagination);
+        settingsStatement.setInt(3, searchOrderRows);
+
+        settingsStatement.executeUpdate();
     }
 }
