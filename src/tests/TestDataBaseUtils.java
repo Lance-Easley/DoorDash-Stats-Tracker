@@ -194,17 +194,7 @@ public class TestDataBaseUtils {
 
     @Test
     @Order(2)
-    void testGetOptionsFromDatabase() throws SQLException {
-        HashMap<String, String> testSettings = DatabaseUtils.getSettingsFromDatabase();
-
-        assertEquals("false", testSettings.get("isSentenced"));
-        assertEquals("2", testSettings.get("displayOrderPagination"));
-        assertEquals("3", testSettings.get("searchOrderRows"));
-    }
-
-    @Test
-    @Order(3)
-    void testUpdateOptionsInDatabase() throws SQLException {
+    void testUpdateAndGetOptionsFromDatabase() throws SQLException {
         DatabaseUtils.updateSettingsInDatabase(true, 5, 10);
 
         HashMap<String, String> testSettings = DatabaseUtils.getSettingsFromDatabase();

@@ -113,6 +113,9 @@ public class DatabaseUtils {
         ResultSet data = selectOrders.executeQuery();
 
         ArrayList<Integer> result = new ArrayList<>();
+
+
+
         while (data.next()) {
             result.add(data.getInt("id"));
         }
